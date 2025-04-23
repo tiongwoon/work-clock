@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: 900;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #timer {
+            font-size: 48px;
+            margin: 20px 0;
+        }
+        #status {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+        }
+        #killSwitchBtn {
+            background-color: #ff9800;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Work Timer</h1>
+        <div id="timer">00:00:00</div>
+        <div id="status">Waiting for work hours...</div>
+        <div class="button-container">
+            <button id="startBtn">Start Timer</button>
+            <button id="stopBtn" disabled>Stop Timer</button>
+            <button id="killSwitchBtn">Kill Switch</button>
+        </div>
+    </div>
+
+    <script>
+        const timerDisplay = document.getElementById('timer');
+        const statusDisplay = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const killSwitchBtn = document.getElementById('killSwitchBtn');
+        
+        let timer;
+        let audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+        let isManuallyStarted = false;
+        let isKillSwitchActive = false;
+        let manualStartTime = 0;
+
+        function playBell() {
+            audio.play();
+            setTimeout(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }, 30000); // Stop after 30 seconds
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const day = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // Check if it's a weekday (1-5) and between 9 AM and 6 PM
+            const isWorkHours = day >= 1 && day <= 5 && hours >= 9 && hours < 18;
+            
+            if (isManuallyStarted) {
+                const elapsedSeconds = Math.floor((Date.now() - manualStartTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsedSeconds);
+                
+                // Check if we're at the start of a new 30-minute block
+                if (elapsedSeconds % 1800 === 0) {
+                    playBell();
+                }
+
+                statusDisplay.textContent = "Timer running (Manual)";
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else if (isWorkHours && !isKillSwitchActive) {
+                const totalSeconds = (hours - 9) * 3600 + minutes * 60 + seconds;
+                const thirtyMinuteBlocks = Math.floor(totalSeconds / 1800);
+                const secondsInCurrentBlock = totalSeconds % 1800;
+
+                timerDisplay.textContent = formatTime(secondsInCurrentBlock);
+                
+                // Check if we're at the start of a new 30-minute block
+                if (secondsInCurrentBlock === 0 && seconds === 0) {
+                    playBell();
+                }
+
+                statusDisplay.textContent = "Timer running (Work Hours)";
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                timerDisplay.textContent = "00:00:00";
+                statusDisplay.textContent = isKillSwitchActive ? "Timer disabled (Kill Switch)" : "Outside of work hours (9 AM - 6 PM, Mon-Fri)";
+                startBtn.disabled = isWorkHours;
+                stopBtn.disabled = true;
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            isManuallyStarted = true;
+            manualStartTime = Date.now();
+            updateTimer();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            isManuallyStarted = false;
+            updateTimer();
+        });
+
+        killSwitchBtn.addEventListener('click', () => {
+            isKillSwitchActive = !isKillSwitchActive;
+            killSwitchBtn.style.backgroundColor = isKillSwitchActive ? '#ff5722' : '#ff9800';
+            updateTimer();
+        });
+
+        // Update timer every second
+        setInterval(updateTimer, 1000);
+        updateTimer(); // Initial update
+    </script>
+</body>
+</html> 
